@@ -1,12 +1,15 @@
 #!/usr/bin/env python3
-"""Gemini Smart Search scaffold.
+"""Gemini Smart Search.
 
-Initial placeholder for a Gemini-only smart search worker with model routing and
-quota fallback. The first real implementation should:
-- accept --query / --mode / --json
-- resolve API key from SMART_SEARCH_GEMINI_API_KEY then GEMINI_API_KEY
-- try a model chain based on mode
-- return standardized JSON
+Minimal Gemini-only smart search worker with model routing and fallback.
+
+Features:
+- accepts --query / --mode / --json
+- resolves API key from SMART_SEARCH_GEMINI_API_KEY then GEMINI_API_KEY
+- tries a model chain based on mode
+- uses Google Search grounding via the Gemini API
+- falls back on quota / unavailable model / transient upstream errors
+- returns standardized JSON for orchestration
 """
 
 from __future__ import annotations
@@ -15,7 +18,11 @@ import argparse
 import json
 import os
 import sys
-from typing import List
+import urllib.error
+import urllib.parse
+import urllib.request
+from dataclasses import dataclass
+from typing import Any
 
 MODEL_CHAINS = {
     "cheap": ["gemini-2.5-flash-lite", "gemini-2.5-flash", "gemini-2.5-pro"],
@@ -23,42 +30,308 @@ MODEL_CHAINS = {
     "deep": ["gemini-2.5-pro", "gemini-2.5-flash", "gemini-2.5-flash-lite"],
 }
 
+API_BASE = "https://generativelanguage.googleapis.com/v1beta/models/{model}:generateContent"
+DEFAULT_TIMEOUT_SECONDS = 45
+
+
+@dataclass
+class SearchError(Exception):
+    type: str
+    message: str
+    status: int | None = None
+    retryable: bool = False
+    raw_status: str | None = None
+
+    def to_dict(self) -> dict[str, Any]:
+        data: dict[str, Any] = {
+            "type": self.type,
+            "message": self.message,
+        }
+        if self.status is not None:
+            data["status"] = self.status
+        if self.raw_status:
+            data["raw_status"] = self.raw_status
+        return data
+
 
 def resolve_api_key() -> str | None:
     return os.environ.get("SMART_SEARCH_GEMINI_API_KEY") or os.environ.get("GEMINI_API_KEY")
 
 
 def parse_args() -> argparse.Namespace:
-    p = argparse.ArgumentParser(description="Gemini smart search scaffold")
+    p = argparse.ArgumentParser(description="Gemini smart search")
     p.add_argument("--query", required=True, help="Search query")
     p.add_argument("--mode", choices=sorted(MODEL_CHAINS), default="balanced")
     p.add_argument("--json", action="store_true", help="Print JSON output")
     return p.parse_args()
 
 
+def build_request(query: str) -> dict[str, Any]:
+    return {
+        "contents": [
+            {
+                "role": "user",
+                "parts": [
+                    {
+                        "text": (
+                            "Answer the user's query using Google Search grounding when helpful. "
+                            "Provide a concise synthesis and cite relevant sources in grounding metadata.\n\n"
+                            f"Query: {query}"
+                        )
+                    }
+                ],
+            }
+        ],
+        "tools": [{"google_search": {}}],
+        "generationConfig": {
+            "temperature": 0.2,
+            "topP": 0.95,
+            "maxOutputTokens": 1024,
+        },
+    }
+
+
+def classify_api_error(status: int | None, payload: dict[str, Any] | None, fallback_message: str) -> SearchError:
+    error_obj = (payload or {}).get("error") or {}
+    raw_status = error_obj.get("status")
+    message = error_obj.get("message") or fallback_message
+
+    text_blob = " ".join(
+        str(x)
+        for x in [message, raw_status]
+        if x
+    ).lower()
+
+    retryable_statuses = {429, 500, 502, 503, 504}
+    retryable_raw_statuses = {
+        "resource_exhausted",
+        "unavailable",
+        "deadline_exceeded",
+        "aborted",
+        "internal",
+    }
+
+    is_model_unavailable = (
+        (status in {400, 404})
+        and any(token in text_blob for token in ["model", "not found", "unsupported", "not available", "not supported"])
+    )
+
+    if is_model_unavailable:
+        return SearchError(
+            type="model_unavailable",
+            message=message,
+            status=status,
+            retryable=True,
+            raw_status=raw_status,
+        )
+
+    if status in retryable_statuses or (raw_status or "").lower() in retryable_raw_statuses:
+        err_type = "quota_exceeded" if status == 429 or "resource_exhausted" in text_blob else "transient_upstream"
+        return SearchError(
+            type=err_type,
+            message=message,
+            status=status,
+            retryable=True,
+            raw_status=raw_status,
+        )
+
+    return SearchError(
+        type="api_error",
+        message=message,
+        status=status,
+        retryable=False,
+        raw_status=raw_status,
+    )
+
+
+def extract_text(candidate: dict[str, Any]) -> str:
+    parts = (((candidate.get("content") or {}).get("parts")) or [])
+    texts = [part.get("text", "") for part in parts if isinstance(part, dict) and part.get("text")]
+    return "\n".join(texts).strip()
+
+
+def extract_citations(data: dict[str, Any]) -> list[dict[str, str]]:
+    citations: list[dict[str, str]] = []
+    seen: set[tuple[str, str]] = set()
+
+    candidates = data.get("candidates") or []
+    for candidate in candidates:
+        grounding = candidate.get("groundingMetadata") or candidate.get("grounding_metadata") or {}
+        chunks = grounding.get("groundingChunks") or grounding.get("grounding_chunks") or []
+        for chunk in chunks:
+            web = chunk.get("web") or {}
+            title = (web.get("title") or "").strip()
+            url = (web.get("uri") or web.get("url") or "").strip()
+            if not url:
+                continue
+            key = (title, url)
+            if key in seen:
+                continue
+            seen.add(key)
+            citations.append({"title": title or url, "url": url})
+    return citations
+
+
+def call_gemini(model: str, query: str, api_key: str) -> dict[str, Any]:
+    url = API_BASE.format(model=urllib.parse.quote(model, safe=""))
+    url = f"{url}?key={urllib.parse.quote(api_key, safe='')}"
+
+    body = json.dumps(build_request(query)).encode("utf-8")
+    request = urllib.request.Request(
+        url,
+        data=body,
+        headers={"Content-Type": "application/json"},
+        method="POST",
+    )
+
+    try:
+        with urllib.request.urlopen(request, timeout=DEFAULT_TIMEOUT_SECONDS) as response:
+            payload = response.read().decode("utf-8")
+            return json.loads(payload)
+    except urllib.error.HTTPError as exc:
+        raw = exc.read().decode("utf-8", errors="replace")
+        payload = None
+        try:
+            payload = json.loads(raw)
+        except json.JSONDecodeError:
+            payload = None
+        raise classify_api_error(exc.code, payload, raw or f"HTTP {exc.code}") from None
+    except urllib.error.URLError as exc:
+        raise SearchError(
+            type="network_error",
+            message=str(exc.reason),
+            retryable=True,
+        ) from None
+    except TimeoutError:
+        raise SearchError(
+            type="network_timeout",
+            message="Request timed out",
+            retryable=True,
+        ) from None
+
+
+def run_search(query: str, mode: str, api_key: str) -> dict[str, Any]:
+    fallback_chain = MODEL_CHAINS[mode]
+    errors: list[dict[str, Any]] = []
+
+    for model in fallback_chain:
+        try:
+            data = call_gemini(model=model, query=query, api_key=api_key)
+            candidates = data.get("candidates") or []
+            answer = extract_text(candidates[0]) if candidates else ""
+            citations = extract_citations(data)
+            if not answer:
+                raise SearchError(
+                    type="empty_response",
+                    message="Gemini returned no answer text.",
+                    retryable=False,
+                )
+            return {
+                "ok": True,
+                "query": query,
+                "mode": mode,
+                "model_used": model,
+                "fallback_chain": fallback_chain,
+                "answer": answer,
+                "citations": citations,
+                "usage": {
+                    "provider": "gemini",
+                    "grounding": True,
+                    "attempted_models": [entry["model"] for entry in errors] + [model],
+                },
+                "error": None,
+            }
+        except SearchError as exc:
+            errors.append({"model": model, **exc.to_dict()})
+            if exc.retryable:
+                continue
+            return {
+                "ok": False,
+                "query": query,
+                "mode": mode,
+                "model_used": None,
+                "fallback_chain": fallback_chain,
+                "answer": None,
+                "citations": [],
+                "usage": {
+                    "provider": "gemini",
+                    "grounding": True,
+                    "attempted_models": [entry["model"] for entry in errors],
+                },
+                "error": {
+                    **exc.to_dict(),
+                    "attempts": errors,
+                },
+            }
+
+    final_error = SearchError(
+        type="all_models_failed",
+        message="All models in the fallback chain failed.",
+        retryable=True,
+    )
+    return {
+        "ok": False,
+        "query": query,
+        "mode": mode,
+        "model_used": None,
+        "fallback_chain": fallback_chain,
+        "answer": None,
+        "citations": [],
+        "usage": {
+            "provider": "gemini",
+            "grounding": True,
+            "attempted_models": [entry["model"] for entry in errors],
+        },
+        "error": {
+            **final_error.to_dict(),
+            "attempts": errors,
+        },
+    }
+
+
+def print_human(result: dict[str, Any]) -> None:
+    if result["ok"]:
+        print(result["answer"])
+        if result["citations"]:
+            print("\nSources:")
+            for citation in result["citations"]:
+                print(f"- {citation['title']}: {citation['url']}")
+    else:
+        error = result.get("error") or {}
+        print(error.get("message") or "Search failed")
+
+
 def main() -> int:
     args = parse_args()
     api_key = resolve_api_key()
-    result = {
-        "ok": False,
-        "query": args.query,
-        "mode": args.mode,
-        "model_used": None,
-        "fallback_chain": MODEL_CHAINS[args.mode],
-        "answer": None,
-        "citations": [],
-        "usage": {"provider": "gemini", "grounding": True},
-        "error": {
-            "type": "not_implemented",
-            "message": "Scaffold only. Real Gemini smart search implementation not wired yet.",
-            "api_key_present": bool(api_key),
-        },
-    }
+
+    if not api_key:
+        result = {
+            "ok": False,
+            "query": args.query,
+            "mode": args.mode,
+            "model_used": None,
+            "fallback_chain": MODEL_CHAINS[args.mode],
+            "answer": None,
+            "citations": [],
+            "usage": {"provider": "gemini", "grounding": True, "attempted_models": []},
+            "error": {
+                "type": "missing_api_key",
+                "message": "Missing Gemini API key. Set SMART_SEARCH_GEMINI_API_KEY or GEMINI_API_KEY.",
+            },
+        }
+        if args.json:
+            print(json.dumps(result, ensure_ascii=False, indent=2))
+        else:
+            print(result["error"]["message"], file=sys.stderr)
+        return 1
+
+    result = run_search(query=args.query, mode=args.mode, api_key=api_key)
     if args.json:
         print(json.dumps(result, ensure_ascii=False, indent=2))
     else:
-        print(result["error"]["message"])
-    return 0
+        print_human(result)
+    return 0 if result["ok"] else 1
 
 
 if __name__ == "__main__":

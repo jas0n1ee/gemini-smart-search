@@ -32,12 +32,12 @@ It exists to provide:
 
 ## Invocation
 
-Run the Python script via `exec` and request JSON output.
+Run the shell wrapper via `exec` and request JSON output. The wrapper is the current supported entrypoint because it loads repo-local `.env.local` when present.
 
 Example:
 
 ```bash
-python3 skills/gemini-smart-search/scripts/gemini_smart_search.py \
+bash skills/gemini-smart-search/scripts/gemini_smart_search.sh \
   --query "BoundaryML context engineering" \
   --mode cheap \
   --json
@@ -95,8 +95,17 @@ Do not silently fallback on obvious local/script bugs or invalid arguments.
 ## References
 
 - `references/config.md` — environment variables and design notes
+- `references/qa-test-plan.md` — focused QA scope for v1 behavior and release gates
 - `assets/example-output.json` — expected response shape
+- `scripts/smoke_test.sh` — non-destructive local smoke checks for the scaffold
 
 ## Status
 
-This is the initial scaffold. The Python implementation is not complete yet.
+Python implementation is now wired for a first real version:
+- direct Gemini API call path
+- Google Search grounding enabled
+- mode-based model routing
+- fallback across Flash-Lite / Flash / Pro for retryable upstream errors
+- structured JSON output for orchestration
+
+This is still intentionally minimal: it does not yet expose advanced tuning flags, caching, or richer citation post-processing.
