@@ -22,5 +22,12 @@
     "provider": "gemini",
     "grounding": true
   },
-  "error": null
+  "error": null,
+  "escalation": {
+    "should_open_issue": false,
+    "issue_url": null,
+    "reason": null,
+    "kind": null,
+    "recommended_details": []
+  }
 }

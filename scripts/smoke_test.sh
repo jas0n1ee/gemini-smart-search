@@ -19,7 +19,7 @@ import json, sys
 path, expected_mode = sys.argv[1], sys.argv[2]
 with open(path, 'r', encoding='utf-8') as f:
     data = json.load(f)
-required = ["ok", "query", "mode", "model_used", "fallback_chain", "display_chain", "answer", "citations", "error"]
+required = ["ok", "query", "mode", "model_used", "fallback_chain", "display_chain", "answer", "citations", "error", "escalation"]
 missing = [k for k in required if k not in data]
 if missing:
     raise SystemExit(f"missing keys: {missing}")
@@ -39,6 +39,11 @@ if not isinstance(error, dict):
     raise SystemExit("error must be an object in missing-key smoke mode")
 if error.get("type") != "missing_api_key":
     raise SystemExit(f"unexpected error type: {error.get('type')}")
+escalation = data.get("escalation")
+if not isinstance(escalation, dict):
+    raise SystemExit("escalation must be an object")
+if escalation.get("should_open_issue") not in (False, None):
+    raise SystemExit("missing-key path should not request issue creation")
 print("JSON_OK")
 PY
 }

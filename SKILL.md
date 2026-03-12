@@ -68,6 +68,7 @@ Expect JSON with at least:
 - `answer`
 - `citations`
 - `error`
+- `escalation`
 
 ## API key policy
 
@@ -110,6 +111,7 @@ Do not silently fallback on obvious local/script bugs or invalid arguments.
 
 - `references/config.md` — environment variables and design notes
 - `references/qa-test-plan.md` — focused QA scope for v1 behavior and release gates
+- `references/escalation-design.md` — when to return a GitHub issue URL for human escalation
 - `assets/example-output.json` — expected response shape
 - `scripts/smoke_test.sh` — non-destructive local smoke checks for the scaffold
 

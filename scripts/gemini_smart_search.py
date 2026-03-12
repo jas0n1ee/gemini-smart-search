@@ -40,6 +40,7 @@ MODEL_CANDIDATES = {
 
 API_BASE = "https://generativelanguage.googleapis.com/v1beta/models/{model}:generateContent"
 DEFAULT_TIMEOUT_SECONDS = 45
+ISSUE_URL = "https://github.com/jas0n1ee/gemini-smart-search/issues/new"
 
 
 @dataclass
@@ -246,6 +247,46 @@ def expand_model_chain(mode: str) -> list[str]:
     return chain
 
 
+def default_escalation() -> dict[str, Any]:
+    return {
+        "should_open_issue": False,
+        "issue_url": None,
+        "reason": None,
+        "kind": None,
+        "recommended_details": [],
+    }
+
+
+def build_escalation(error_type: str, reason: str | None = None) -> dict[str, Any]:
+    mapping = {
+        "schema_mismatch": "api-compat",
+        "unexpected_response_shape": "api-compat",
+        "all_models_failed": "model-routing",
+        "model_unavailable": "model-routing",
+        "internal_error": "bug",
+        "contract_drift": "docs-mismatch",
+    }
+    kind = mapping.get(error_type)
+    if not kind:
+        return default_escalation()
+    return {
+        "should_open_issue": True,
+        "issue_url": ISSUE_URL,
+        "reason": reason or error_type,
+        "kind": kind,
+        "recommended_details": [
+            "query",
+            "mode",
+            "display_chain",
+            "fallback_chain",
+            "model_used",
+            "usage.attempted_models",
+            "error.type",
+            "error.message",
+        ],
+    }
+
+
 def run_search(query: str, mode: str, api_key: str) -> dict[str, Any]:
     display_chain = DISPLAY_MODEL_CHAINS[mode]
     fallback_chain = expand_model_chain(mode)
@@ -278,6 +319,7 @@ def run_search(query: str, mode: str, api_key: str) -> dict[str, Any]:
                     "attempted_models": [entry["model"] for entry in errors] + [model],
                 },
                 "error": None,
+                "escalation": default_escalation(),
             }
         except SearchError as exc:
             errors.append({"model": model, **exc.to_dict()})
@@ -301,6 +343,7 @@ def run_search(query: str, mode: str, api_key: str) -> dict[str, Any]:
                     **exc.to_dict(),
                     "attempts": errors,
                 },
+                "escalation": build_escalation(exc.type, exc.message),
             }
 
     final_error = SearchError(
@@ -326,6 +369,7 @@ def run_search(query: str, mode: str, api_key: str) -> dict[str, Any]:
             **final_error.to_dict(),
             "attempts": errors,
         },
+        "escalation": build_escalation(final_error.type, final_error.message),
     }
 
 
@@ -361,6 +405,7 @@ def main() -> int:
                 "type": "missing_api_key",
                 "message": "Missing Gemini API key. Set SMART_SEARCH_GEMINI_API_KEY or GEMINI_API_KEY.",
             },
+            "escalation": default_escalation(),
         }
         if args.json:
             print(json.dumps(result, ensure_ascii=False, indent=2))
@@ -368,7 +413,25 @@ def main() -> int:
             print(result["error"]["message"], file=sys.stderr)
         return 1
 
-    result = run_search(query=args.query, mode=args.mode, api_key=api_key)
+    try:
+        result = run_search(query=args.query, mode=args.mode, api_key=api_key)
+    except Exception as exc:  # defensive final boundary
+        result = {
+            "ok": False,
+            "query": args.query,
+            "mode": args.mode,
+            "model_used": None,
+            "fallback_chain": expand_model_chain(args.mode),
+            "display_chain": DISPLAY_MODEL_CHAINS[args.mode],
+            "answer": None,
+            "citations": [],
+            "usage": {"provider": "gemini", "grounding": True, "attempted_models": []},
+            "error": {
+                "type": "internal_error",
+                "message": str(exc) or exc.__class__.__name__,
+            },
+            "escalation": build_escalation("internal_error", str(exc) or exc.__class__.__name__),
+        }
     if args.json:
         print(json.dumps(result, ensure_ascii=False, indent=2))
     else:
