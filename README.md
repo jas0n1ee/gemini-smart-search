@@ -17,9 +17,9 @@ The agent should:
 - read `SKILL.md`
 - ask you for a Gemini API key if setup is incomplete
 
-This skill expects a Gemini API key:
-- preferred: `SMART_SEARCH_GEMINI_API_KEY`
-- fallback: `GEMINI_API_KEY`
+This skill requires a Gemini API key:
+- primary / preferred: `SMART_SEARCH_GEMINI_API_KEY`
+- compatibility fallback: `GEMINI_API_KEY`
 
 Keep the key in a gitignored local env file such as `.env.local`, not in tracked files.
 
@@ -36,3 +36,6 @@ This skill gives an agent a Gemini-only search workflow with:
 - This repo is primarily for agent use.
 - Human-facing setup is intentionally minimal.
 - Release notes and release checklist live under `references/`.
+- The ClawHub artifact should be a clean subset of this repo, not a full repo snapshot.
+- `LICENSE` stays in the GitHub repo but is intentionally excluded from the ClawHub artifact export.
+- `.env.local`, `.git/`, and other repo/dev-only files must never ship in the artifact.

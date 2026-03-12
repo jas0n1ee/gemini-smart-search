@@ -98,9 +98,9 @@ Notes:
 
 The script should prefer a dedicated key path for this skill, then fall back to the standard Gemini key.
 
-Preferred order:
-1. `SMART_SEARCH_GEMINI_API_KEY`
-2. `GEMINI_API_KEY`
+Required key resolution order:
+1. `SMART_SEARCH_GEMINI_API_KEY` (primary declared env)
+2. `GEMINI_API_KEY` (compatibility fallback)
 
 If neither key is present, the agent must explicitly ask the human for a Gemini API key before claiming setup is complete.
 
@@ -140,9 +140,11 @@ Do not silently fallback on obvious local/script bugs or invalid arguments.
 - `references/model-id-recon.md` — verified callable Gemini model IDs and mapping notes
 - `references/escalation-design.md` — when to return a GitHub issue URL for human escalation
 - `references/release-checklist.md` — artifact release checklist with current completion status
+- `references/development-goals-v0.1.1.md` — next small version scope and artifact policy
 - `references/release-notes-v0.1.0.md` — initial release notes for the first artifact
 - `assets/example-output.json` — expected response shape
 - `scripts/smoke_test.sh` — non-destructive local smoke checks for the scaffold
+- `scripts/prepare_artifact.sh` — deterministic clean artifact export helper
 
 ## Status
 
@@ -156,4 +158,4 @@ Python implementation is now wired for a first real version:
 
 This is still intentionally minimal: it does not yet expose advanced tuning flags, caching, or richer citation post-processing.
 
-Before publishing an artifact, consult `references/release-checklist.md` and ship the release note in `references/release-notes-v0.1.0.md` (or its next-version successor).
+Before publishing an artifact, consult `references/release-checklist.md`, review `references/development-goals-v0.1.1.md`, run `scripts/prepare_artifact.sh`, and ship the release note in `references/release-notes-v0.1.0.md` (or its next-version successor).

@@ -1,3 +1,4 @@
 .env.local
+.artifact-out/
 __pycache__/
 *.pyc

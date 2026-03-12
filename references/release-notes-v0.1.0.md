@@ -56,8 +56,9 @@ Initial public artifact release of a Gemini-only, script-backed smart search ski
 This release is intended as a clean skill artifact.
 
 Before packaging/publishing the artifact:
-- remove the nested `.git/` directory from the exported artifact
-- do not include `.env.local`
+- export from the clean staging helper (`scripts/prepare_artifact.sh`) instead of publishing a raw repo snapshot
+- do not include `.git/`, `.env.local`, `.gitignore`, or `LICENSE`
+- keep `LICENSE` in the GitHub repo; exclude it only from the ClawHub artifact
 
 ## Not included in v0.1.0
 

@@ -50,11 +50,30 @@ Legend:
 
 - [x] `.env.local` is gitignored.
 - [x] No API key is stored in tracked files.
-- [ ] Remove nested `.git/` from the published artifact.
-- [ ] Exclude `.env.local` from the published artifact.
+- [x] Artifact export policy explicitly excludes `.git/`, `.env.local`, and repo/dev-only files.
+- [x] `LICENSE` is kept as a repo-only file and excluded from the ClawHub artifact.
 
 ## F. Release packaging
 
+Artifact ship list for ClawHub export:
+- `SKILL.md`
+- `README.md`
+- `scripts/gemini_smart_search.py`
+- `scripts/gemini_smart_search.sh`
+- `scripts/smoke_test.sh`
+- `references/config.md`
+- `references/release-checklist.md`
+- `assets/example-output.json`
+
+Repo-only / exclude from ClawHub export:
+- `.git/`
+- `.env.local`
+- `.gitignore`
+- `LICENSE`
+- development, QA, review, and release-note working docs not needed at runtime
+
+Required packaging checks:
+- [x] `scripts/prepare_artifact.sh` stages only the approved artifact contents.
 - [ ] Artifact contents are reviewed after export.
 - [ ] Release note is included or published alongside the artifact.
 - [ ] Version tag/name is chosen for the artifact (for example `v0.1.0`).
@@ -70,4 +89,6 @@ These do **not** block the current artifact release:
 
 ## Release decision
 
-If every unchecked item in sections E/F is completed, this release candidate is ready to publish as an artifact.
+For a publishable candidate, run `scripts/smoke_test.sh`, then `scripts/prepare_artifact.sh`, then inspect the staged artifact contents.
+
+If every unchecked item in section F is completed, this release candidate is ready to publish as an artifact.
