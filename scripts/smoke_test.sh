@@ -19,7 +19,7 @@ import json, sys
 path, expected_mode = sys.argv[1], sys.argv[2]
 with open(path, 'r', encoding='utf-8') as f:
     data = json.load(f)
-required = ["ok", "query", "mode", "model_used", "fallback_chain", "answer", "citations", "error"]
+required = ["ok", "query", "mode", "model_used", "fallback_chain", "display_chain", "answer", "citations", "error"]
 missing = [k for k in required if k not in data]
 if missing:
     raise SystemExit(f"missing keys: {missing}")
@@ -49,7 +49,7 @@ trap 'rm -rf "$TMP_DIR"' EXIT
 for mode in cheap balanced deep; do
   out="$TMP_DIR/$mode.json"
   set +e
-  env -i PATH="$PATH" python3 "$PYTHON_ENTRY" --query "smoke test" --mode "$mode" --json > "$out"
+  env -i PATH="$PATH" GEMINI_SMART_SEARCH_SKIP_LOCAL_ENV=1 python3 "$PYTHON_ENTRY" --query "smoke test" --mode "$mode" --json > "$out"
   status=$?
   set -e
   if [ "$status" -ne 1 ]; then

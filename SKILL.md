@@ -1,6 +1,6 @@
 ---
 name: gemini-smart-search
-description: Search the web using Gemini with Google Search grounding through a local script, with model routing and quota fallback across Gemini Flash-Lite, Flash, and Pro. Use when web research should stay inside the Gemini family, when dynamic model switching is needed without restarting the OpenClaw gateway, when a separate Gemini API key/quota pool should be used, or when repeated search tasks need cheap/balanced/deep modes with structured JSON output.
+description: Search the web using Gemini with Google Search grounding through a local script, with model routing and quota fallback across Gemini Flash-Lite / Flash variants. Use when web research should stay inside the Gemini family, when dynamic model switching is needed without restarting the OpenClaw gateway, when a separate Gemini API key/quota pool should be used, or when repeated search tasks need cheap/balanced/deep modes with structured JSON output.
 ---
 
 # Gemini Smart Search
@@ -20,19 +20,32 @@ It exists to provide:
 
 ## Modes
 
+Model routing is split into two layers:
+- **display chain**: human-facing preferred model family labels
+- **candidate API ids**: the actual model ids to probe, especially for 3.x preview-era models
+
+Current display chains:
+
 - **cheap**
   - Prefer `gemini-2.5-flash-lite`
-  - Fallback to `gemini-2.5-flash`, then `gemini-2.5-pro`
+  - Then `gemini-3.1-flash-lite`
+  - Then `gemini-2.5-flash`
 - **balanced**
   - Prefer `gemini-2.5-flash`
-  - Fallback to `gemini-2.5-flash-lite`, then `gemini-2.5-pro`
+  - Then `gemini-3-flash`
+  - Then `gemini-2.5-flash-lite`
 - **deep**
-  - Prefer `gemini-2.5-pro`
-  - Fallback to `gemini-2.5-flash`, then `gemini-2.5-flash-lite`
+  - Prefer `gemini-3-flash`
+  - Then `gemini-2.5-flash`
+  - Then `gemini-3.1-flash-lite`
+
+For 3.x models, do not assume the UI label is the raw API id. Probe candidate ids such as preview-suffixed names when needed.
 
 ## Invocation
 
-Run the shell wrapper via `exec` and request JSON output. The wrapper is the current supported entrypoint because it loads repo-local `.env.local` when present.
+Run the Python script or the shell wrapper via `exec` and request JSON output.
+
+Python is now the canonical entrypoint because it also loads repo-local `.env.local` when present. The shell wrapper remains a convenience layer.
 
 Example:
 
@@ -51,6 +64,7 @@ Expect JSON with at least:
 - `mode`
 - `model_used`
 - `fallback_chain`
+- `display_chain`
 - `answer`
 - `citations`
 - `error`
@@ -105,7 +119,8 @@ Python implementation is now wired for a first real version:
 - direct Gemini API call path
 - Google Search grounding enabled
 - mode-based model routing
-- fallback across Flash-Lite / Flash / Pro for retryable upstream errors
+- Python-side repo-local `.env.local` loading
+- fallback across Gemini Flash-Lite / Flash variants for retryable upstream errors
 - structured JSON output for orchestration
 
 This is still intentionally minimal: it does not yet expose advanced tuning flags, caching, or richer citation post-processing.

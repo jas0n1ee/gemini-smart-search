@@ -22,12 +22,20 @@ import urllib.error
 import urllib.parse
 import urllib.request
 from dataclasses import dataclass
+from pathlib import Path
 from typing import Any
 
-MODEL_CHAINS = {
-    "cheap": ["gemini-2.5-flash-lite", "gemini-2.5-flash", "gemini-2.5-pro"],
-    "balanced": ["gemini-2.5-flash", "gemini-2.5-flash-lite", "gemini-2.5-pro"],
-    "deep": ["gemini-2.5-pro", "gemini-2.5-flash", "gemini-2.5-flash-lite"],
+DISPLAY_MODEL_CHAINS = {
+    "cheap": ["gemini-2.5-flash-lite", "gemini-3.1-flash-lite", "gemini-2.5-flash"],
+    "balanced": ["gemini-2.5-flash", "gemini-3-flash", "gemini-2.5-flash-lite"],
+    "deep": ["gemini-3-flash", "gemini-2.5-flash", "gemini-3.1-flash-lite"],
+}
+
+MODEL_CANDIDATES = {
+    "gemini-2.5-flash-lite": ["gemini-2.5-flash-lite"],
+    "gemini-2.5-flash": ["gemini-2.5-flash"],
+    "gemini-3-flash": ["gemini-3-flash-preview", "gemini-3-flash"],
+    "gemini-3.1-flash-lite": ["gemini-3.1-flash-lite-preview", "gemini-3.1-flash-lite"],
 }
 
 API_BASE = "https://generativelanguage.googleapis.com/v1beta/models/{model}:generateContent"
@@ -54,6 +62,27 @@ class SearchError(Exception):
         return data
 
 
+def load_repo_local_env() -> None:
+    if os.environ.get("GEMINI_SMART_SEARCH_SKIP_LOCAL_ENV") == "1":
+        return
+    script_dir = Path(__file__).resolve().parent
+    env_path = script_dir.parent / ".env.local"
+    if not env_path.exists():
+        return
+    for raw_line in env_path.read_text(encoding="utf-8").splitlines():
+        line = raw_line.strip()
+        if not line or line.startswith("#") or "=" not in line:
+            continue
+        key, value = line.split("=", 1)
+        key = key.strip()
+        value = value.strip()
+        if not key or key in os.environ:
+            continue
+        if value and len(value) >= 2 and value[0] == value[-1] and value[0] in {'"', "'"}:
+            value = value[1:-1]
+        os.environ[key] = value
+
+
 def resolve_api_key() -> str | None:
     return os.environ.get("SMART_SEARCH_GEMINI_API_KEY") or os.environ.get("GEMINI_API_KEY")
 
@@ -61,7 +90,7 @@ def resolve_api_key() -> str | None:
 def parse_args() -> argparse.Namespace:
     p = argparse.ArgumentParser(description="Gemini smart search")
     p.add_argument("--query", required=True, help="Search query")
-    p.add_argument("--mode", choices=sorted(MODEL_CHAINS), default="balanced")
+    p.add_argument("--mode", choices=sorted(DISPLAY_MODEL_CHAINS), default="balanced")
     p.add_argument("--json", action="store_true", help="Print JSON output")
     return p.parse_args()
 
@@ -210,8 +239,16 @@ def call_gemini(model: str, query: str, api_key: str) -> dict[str, Any]:
         ) from None
 
 
+def expand_model_chain(mode: str) -> list[str]:
+    chain: list[str] = []
+    for display_name in DISPLAY_MODEL_CHAINS[mode]:
+        chain.extend(MODEL_CANDIDATES.get(display_name, [display_name]))
+    return chain
+
+
 def run_search(query: str, mode: str, api_key: str) -> dict[str, Any]:
-    fallback_chain = MODEL_CHAINS[mode]
+    display_chain = DISPLAY_MODEL_CHAINS[mode]
+    fallback_chain = expand_model_chain(mode)
     errors: list[dict[str, Any]] = []
 
     for model in fallback_chain:
@@ -232,6 +269,7 @@ def run_search(query: str, mode: str, api_key: str) -> dict[str, Any]:
                 "mode": mode,
                 "model_used": model,
                 "fallback_chain": fallback_chain,
+                "display_chain": display_chain,
                 "answer": answer,
                 "citations": citations,
                 "usage": {
@@ -251,6 +289,7 @@ def run_search(query: str, mode: str, api_key: str) -> dict[str, Any]:
                 "mode": mode,
                 "model_used": None,
                 "fallback_chain": fallback_chain,
+                "display_chain": display_chain,
                 "answer": None,
                 "citations": [],
                 "usage": {
@@ -275,6 +314,7 @@ def run_search(query: str, mode: str, api_key: str) -> dict[str, Any]:
         "mode": mode,
         "model_used": None,
         "fallback_chain": fallback_chain,
+        "display_chain": display_chain,
         "answer": None,
         "citations": [],
         "usage": {
@@ -303,6 +343,7 @@ def print_human(result: dict[str, Any]) -> None:
 
 def main() -> int:
     args = parse_args()
+    load_repo_local_env()
     api_key = resolve_api_key()
 
     if not api_key:
@@ -311,7 +352,8 @@ def main() -> int:
             "query": args.query,
             "mode": args.mode,
             "model_used": None,
-            "fallback_chain": MODEL_CHAINS[args.mode],
+            "fallback_chain": expand_model_chain(args.mode),
+            "display_chain": DISPLAY_MODEL_CHAINS[args.mode],
             "answer": None,
             "citations": [],
             "usage": {"provider": "gemini", "grounding": True, "attempted_models": []},

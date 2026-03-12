@@ -14,10 +14,9 @@ Validate these behaviors before calling the first implementation "usable":
 
 ## High-priority findings from scaffold review
 
-- `SKILL.md` originally told agents to invoke the Python entrypoint directly.
-- Repo-local `.env.local` loading currently happens only in `scripts/gemini_smart_search.sh`.
-- Result: direct Python invocation can falsely report `api_key_present: false` even when `.env.local` exists.
-- This is a workflow/documentation mismatch, not just a test concern.
+- Python is now intended to be the canonical entrypoint.
+- Repo-local `.env.local` should be loaded consistently by Python, with the shell wrapper remaining a convenience layer.
+- QA should keep checking that direct Python invocation and wrapper invocation behave equivalently for env resolution.
 
 ## Test matrix
 
@@ -100,6 +99,7 @@ Recommended minimum smoke set:
 - wrapper path works without traceback
 - missing-key path stays graceful
 - ignored-file check passes
+- use `GEMINI_SMART_SEARCH_SKIP_LOCAL_ENV=1` so missing-key smoke checks stay quota-free even when a local `.env.local` exists
 
 Optional live smoke gate:
 - run a single cheap-mode query only when an explicit opt-in flag is set
@@ -117,16 +117,11 @@ Do not call v1 ready until all of these are true:
 
 ## Recommended next implementation move
 
-Pick one of these and be consistent:
+Chosen direction:
 
-1. **Wrapper is the supported entrypoint**
-   - keep `.env.local` loading in shell
-   - document shell invocation everywhere
-   - test wrapper, not raw Python, as the default path
-
-2. **Python is the supported entrypoint**
-   - move `.env.local` loading into Python
-   - keep shell as a thin convenience wrapper
+1. **Python is the supported entrypoint**
+   - `.env.local` loading should happen in Python
+   - shell remains a thin convenience wrapper
    - test both, but treat Python as canonical
 
-Right now the scaffold is between the two, which is annoying in exactly the way future-us would hate.
+That choice removes the earlier entrypoint mismatch and should stay stable unless the skill is later promoted into a plugin/tool.
