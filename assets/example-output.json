@@ -1,0 +1,21 @@
+{
+  "ok": true,
+  "query": "BoundaryML context engineering",
+  "mode": "cheap",
+  "model_used": "gemini-2.5-flash-lite",
+  "fallback_chain": [
+    "gemini-2.5-flash-lite"
+  ],
+  "answer": "BoundaryML publishes high-signal content around AI coding and context engineering.",
+  "citations": [
+    {
+      "title": "BoundaryML - YouTube",
+      "url": "https://www.youtube.com/@boundaryml"
+    }
+  ],
+  "usage": {
+    "provider": "gemini",
+    "grounding": true
+  },
+  "error": null
+}
