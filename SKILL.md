@@ -127,7 +127,12 @@ Do not silently fallback on obvious local/script bugs or invalid arguments.
 
 - `references/config.md` — environment variables and design notes
 - `references/qa-test-plan.md` — focused QA scope for v1 behavior and release gates
+- `references/qa-results-2026-03-12.md` — CLI-oriented QA outcomes from the current release cycle
+- `references/agent-qa-cases.md` — adversarial agent-style misuse review
+- `references/model-id-recon.md` — verified callable Gemini model IDs and mapping notes
 - `references/escalation-design.md` — when to return a GitHub issue URL for human escalation
+- `references/release-checklist.md` — artifact release checklist with current completion status
+- `references/release-notes-v0.1.0.md` — initial release notes for the first artifact
 - `assets/example-output.json` — expected response shape
 - `scripts/smoke_test.sh` — non-destructive local smoke checks for the scaffold
 
@@ -142,3 +147,5 @@ Python implementation is now wired for a first real version:
 - structured JSON output for orchestration
 
 This is still intentionally minimal: it does not yet expose advanced tuning flags, caching, or richer citation post-processing.
+
+Before publishing an artifact, consult `references/release-checklist.md` and ship the release note in `references/release-notes-v0.1.0.md` (or its next-version successor).
