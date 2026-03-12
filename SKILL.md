@@ -141,7 +141,7 @@ Do not silently fallback on obvious local/script bugs or invalid arguments.
 - `references/escalation-design.md` — when to return a GitHub issue URL for human escalation
 - `references/release-checklist.md` — artifact release checklist with current completion status
 - `references/development-goals-v0.1.1.md` — next small version scope and artifact policy
-- `references/release-notes-v0.1.0.md` — initial release notes for the first artifact
+- `references/release-notes-v0.1.1.md` — release notes for the current artifact
 - `assets/example-output.json` — expected response shape
 - `scripts/smoke_test.sh` — non-destructive local smoke checks for the scaffold
 - `scripts/prepare_artifact.sh` — deterministic clean artifact export helper
@@ -158,4 +158,4 @@ Python implementation is now wired for a first real version:
 
 This is still intentionally minimal: it does not yet expose advanced tuning flags, caching, or richer citation post-processing.
 
-Before publishing an artifact, consult `references/release-checklist.md`, review `references/development-goals-v0.1.1.md`, run `scripts/prepare_artifact.sh`, and ship the release note in `references/release-notes-v0.1.0.md` (or its next-version successor).
+Before publishing an artifact, consult `references/release-checklist.md`, review `references/development-goals-v0.1.1.md`, run `scripts/prepare_artifact.sh`, and publish the release note in `references/release-notes-v0.1.1.md` alongside the artifact.

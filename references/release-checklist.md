@@ -74,11 +74,11 @@ Repo-only / exclude from ClawHub export:
 
 Required packaging checks:
 - [x] `scripts/prepare_artifact.sh` stages only the approved artifact contents.
-- [ ] Artifact contents are reviewed after export.
-- [ ] Release note is included or published alongside the artifact.
-- [ ] Version tag/name is chosen for the artifact (for example `v0.1.0`).
+- [x] Artifact contents are reviewed after export.
+- [x] Release note is published alongside the artifact (`references/release-notes-v0.1.1.md`).
+- [x] Version tag/name is chosen for the artifact (`v0.1.1`).
 
-## G. Known acceptable caveats for v0.1.0
+## G. Known acceptable caveats for v0.1.1
 
 These do **not** block the current artifact release:
 

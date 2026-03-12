@@ -56,6 +56,7 @@
   - `references/qa-results-2026-03-12.md`
   - `references/qa-test-plan.md`
   - `references/release-notes-v0.1.0.md`
+  - `references/release-notes-v0.1.1.md`
   - `references/vnext-review-2026-03-12.md`
 
 ## Release validation checklist
