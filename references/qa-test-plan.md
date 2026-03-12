@@ -31,6 +31,7 @@ Checks:
   1. `SMART_SEARCH_GEMINI_API_KEY`
   2. `GEMINI_API_KEY`
 - Missing-key path returns structured JSON, not a traceback.
+- `GEMINI_SMART_SEARCH_SKIP_LOCAL_ENV=1` is treated as a **Python-entrypoint** test control only; wrapper parity tests must account for the wrapper sourcing `.env.local` before exec.
 
 Suggested assertions:
 - `error.api_key_present` flips predictably under controlled env conditions.

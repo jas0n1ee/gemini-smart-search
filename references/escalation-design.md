@@ -52,11 +52,15 @@ Future versions may prefill title/body query parameters.
 
 Do not tell the human to open a GitHub issue for normal operational cases such as:
 - missing API key
-- quota exceeded
-- transient network errors
+- quota exceeded on a single attempted model
+- transient network errors on a single attempted model
 - weird/low-quality query outcomes
 - invalid user CLI arguments
 - a single low-signal result set
+
+Current v1 code caveat:
+- if the entire fallback chain is exhausted, the script currently returns `error.type=all_models_failed` and marks `escalation.should_open_issue=true`, even when the underlying per-model causes were retryable upstream failures.
+- Treat that as the **current shipped contract**, not an idealized policy. Human triage should still inspect `error.attempts` before deciding whether this is a real repo issue versus temporary quota/upstream exhaustion.
 
 ## Output shape
 

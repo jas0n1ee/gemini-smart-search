@@ -9,7 +9,7 @@ Focused CLI-level QA for the current `gemini-smart-search` implementation.
 | T01 | JSON contract + env | Python, `GEMINI_SMART_SEARCH_SKIP_LOCAL_ENV=1`, no keys | PASS | Structured JSON error; `error.type=missing_api_key`; required top-level keys present. |
 | T02 | Entrypoint consistency + env | Shell wrapper, `.env.local` temporarily hidden, no keys | PASS | Wrapper returns the same structured missing-key JSON shape as Python. |
 | T03 | Env precedence | Python, both key vars set to invalid values | PASS | Behavior indicates `SMART_SEARCH_GEMINI_API_KEY` wins over `GEMINI_API_KEY`; first attempted model returns `INVALID_ARGUMENT`; no fallback on bad local auth. |
-| T04 | CLI argument boundary | Python, invalid `--mode bogus` | PASS | `argparse` rejects invalid mode early; non-JSON stderr path is expected here. |
+| T04 | CLI argument boundary | Python, invalid `--mode bogus --json` | PASS | Exit code `2`; structured JSON error is emitted on stderr with `error.type=invalid_arguments`. |
 | T05 | Live cheap-mode contract | Python, cheap live query | PASS | Real call succeeded; `model_used=gemini-2.5-flash-lite`; JSON contract intact. |
 | T06 | Wrapper vs Python live parity | Shell wrapper, same cheap live query | PASS | Wrapper and Python both succeed with the same model and equivalent JSON shape. |
 | T07 | Citation output shape | Python, cheap live query | PASS with caveat | `citations` is always a list of `{title,url}` objects, but URLs are grounding redirect links (`vertexaisearch.cloud.google.com/...`) rather than canonical source URLs. |

@@ -38,4 +38,5 @@ API candidate ids:
 - Keep the script output JSON-first for orchestration.
 - Avoid coupling the script to gateway config.
 - If later promoted to a plugin, preserve the same mode names and result schema.
-- For quota-free smoke tests, Python supports `GEMINI_SMART_SEARCH_SKIP_LOCAL_ENV=1` to disable repo-local `.env.local` loading temporarily.
+- For quota-free smoke tests, Python supports `GEMINI_SMART_SEARCH_SKIP_LOCAL_ENV=1` to disable the Python script's repo-local `.env.local` loading temporarily.
+- That skip flag does **not** stop the shell wrapper from sourcing `.env.local` first; use direct Python invocation for missing-key smoke checks or temporarily hide the env file when testing wrapper parity.
