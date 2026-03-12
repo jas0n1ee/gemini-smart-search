@@ -88,8 +88,44 @@ def resolve_api_key() -> str | None:
     return os.environ.get("SMART_SEARCH_GEMINI_API_KEY") or os.environ.get("GEMINI_API_KEY")
 
 
+class JsonArgumentParser(argparse.ArgumentParser):
+    def error(self, message: str) -> None:
+        wants_json = "--json" in sys.argv[1:]
+        if wants_json:
+            mode = "balanced"
+            argv = sys.argv[1:]
+            for idx, token in enumerate(argv):
+                if token == "--mode" and idx + 1 < len(argv):
+                    mode = argv[idx + 1]
+                elif token.startswith("--mode="):
+                    mode = token.split("=", 1)[1]
+            display_chain = DISPLAY_MODEL_CHAINS.get(mode, DISPLAY_MODEL_CHAINS["balanced"])
+            fallback_chain = []
+            for display_name in display_chain:
+                fallback_chain.extend(MODEL_CANDIDATES.get(display_name, [display_name]))
+            result = {
+                "ok": False,
+                "query": None,
+                "mode": mode,
+                "model_used": None,
+                "fallback_chain": fallback_chain,
+                "display_chain": display_chain,
+                "answer": None,
+                "citations": [],
+                "usage": {"provider": "gemini", "grounding": True, "attempted_models": []},
+                "error": {
+                    "type": "invalid_arguments",
+                    "message": message,
+                },
+                "escalation": default_escalation(),
+            }
+            print(json.dumps(result, ensure_ascii=False, indent=2), file=sys.stderr)
+            raise SystemExit(2)
+        super().error(message)
+
+
 def parse_args() -> argparse.Namespace:
-    p = argparse.ArgumentParser(description="Gemini smart search")
+    p = JsonArgumentParser(description="Gemini smart search")
     p.add_argument("--query", required=True, help="Search query")
     p.add_argument("--mode", choices=sorted(DISPLAY_MODEL_CHAINS), default="balanced")
     p.add_argument("--json", action="store_true", help="Print JSON output")

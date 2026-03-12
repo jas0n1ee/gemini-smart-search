@@ -17,11 +17,9 @@ What looks solid:
 - Direct Python entrypoint does load repo-local `.env.local`, matching current docs.
 
 What is confusing or worth fixing:
-- The skill docs still show the shell wrapper example first even though Python is the canonical entrypoint.
-- `python -m gemini_smart_search` works from `scripts/`, but this entrypoint is undocumented; agents may discover and rely on it accidentally.
-- Invalid CLI args return argparse text, not structured JSON, even if `--json` is present.
+- `python -m gemini_smart_search` works from `scripts/`, but this entrypoint is intentionally not supported for agents and should stay documented that way.
 - Grounding citations come back as Google redirect URLs (`vertexaisearch.cloud.google.com/...`), not clean source URLs; this is valid but awkward for downstream agents/users.
-- Fallback-chain reporting is good, but docs should be more explicit that `model_used` is the actual API id and may differ from display labels.
+- Fallback-chain reporting is good, but docs should stay explicit that `model_used` is the actual API id and may differ from display labels.
 
 ---
 
@@ -122,10 +120,10 @@ python3 skills/gemini-smart-search/scripts/gemini_smart_search.py \
 ```
 **Observed**
 - exit code `2`
-- argparse usage text on stderr
-- **not JSON**
-**Result**: FAIL / doc gap
-**Lesson**: a sloppy agent asking for JSON may still get plain argparse output. If JSON-first is a hard contract, custom arg handling is needed.
+- structured JSON error on stderr
+- `error.type: invalid_arguments`
+**Result**: PASS after fix
+**Lesson**: `--json` now covers CLI argument validation failures too.
 
 ### Case 8 — Wrong entrypoint assumption: try to execute `SKILL.md` as Python
 **Command**
@@ -208,23 +206,13 @@ Citations often use Gemini/Vertex grounding redirect URLs instead of clean canon
 
 ## Recommended fixes
 
-1. **Move Python invocation above wrapper invocation in `SKILL.md`.**
-   - Current docs say Python is canonical, but the first visible example is still the bash wrapper.
-
-2. **Document whether `python -m gemini_smart_search` is supported.**
-   - Right now it works from `scripts/`, which means agents may start using it.
-
-3. **Clarify JSON guarantees.**
-   - Today, `--json` guarantees JSON for runtime/search errors, but **not** for argparse validation errors.
-   - Either document this explicitly or replace argparse’s default error path with JSON-aware handling.
-
-4. **Document `model_used` as an API id, not a display label.**
-   - This matters because deep-mode live behavior already showed display preference `gemini-3-flash` resolving/falling back to different probed ids.
-
+1. **Move Python invocation above wrapper invocation in `SKILL.md`.** ✅
+2. **Document whether `python -m gemini_smart_search` is supported.** ✅ documented as unsupported for agents
+3. **Clarify JSON guarantees.** ✅ `--json` now returns structured JSON for CLI argument validation errors too
+4. **Document `model_used` as an API id, not a display label.** ✅
 5. **Consider normalizing citation URLs.**
    - If grounding metadata exposes canonical URLs anywhere deeper in the response, prefer those over redirect links.
-   - If not possible, at least document that redirect URLs are expected.
-
+   - If not possible, at least document that redirect URLs are expected. ✅ documented; canonicalization still pending
 6. **Add one automated fallback unit test harness.**
    - The simulated tests above were easy and high-signal; they belong in a checked-in test script eventually.
 

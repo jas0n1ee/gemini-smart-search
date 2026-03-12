@@ -47,7 +47,16 @@ Run the Python script or the shell wrapper via `exec` and request JSON output.
 
 Python is now the canonical entrypoint because it also loads repo-local `.env.local` when present. The shell wrapper remains a convenience layer.
 
-Example:
+Primary example (preferred):
+
+```bash
+python3 skills/gemini-smart-search/scripts/gemini_smart_search.py \
+  --query "BoundaryML context engineering" \
+  --mode cheap \
+  --json
+```
+
+Wrapper example (convenience only):
 
 ```bash
 bash skills/gemini-smart-search/scripts/gemini_smart_search.sh \
@@ -55,6 +64,8 @@ bash skills/gemini-smart-search/scripts/gemini_smart_search.sh \
   --mode cheap \
   --json
 ```
+
+`python -m gemini_smart_search` may work when run from the `scripts/` directory, but it is **not** a supported interface for agents right now. Do not depend on it.
 
 ## Output contract
 
@@ -69,6 +80,11 @@ Expect JSON with at least:
 - `citations`
 - `error`
 - `escalation`
+
+Notes:
+- `model_used` is the **actual probed API model id** (for example `gemini-3-flash-preview`), not the human-facing display label.
+- Citation URLs may initially be Google/Vertex grounding redirect URLs instead of canonical source URLs; treat that as a known current limitation.
+- With `--json`, supported runtime paths should return structured JSON on both success and error. Invalid CLI arguments now also return JSON when `--json` is present.
 
 ## API key policy
 
