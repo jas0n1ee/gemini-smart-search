@@ -1,6 +1,14 @@
 ---
 name: gemini-smart-search
 description: Search the web using Gemini with Google Search grounding through a local script, with model routing and quota fallback across Gemini Flash-Lite / Flash variants. Use when web research should stay inside the Gemini family, when dynamic model switching is needed without restarting the OpenClaw gateway, when a separate Gemini API key/quota pool should be used, or when repeated search tasks need cheap/balanced/deep modes with structured JSON output.
+metadata:
+  {
+    "openclaw":
+      {
+        "requires": { "bins": ["python3"] },
+        "primaryEnv": "SMART_SEARCH_GEMINI_API_KEY"
+      }
+  }
 ---
 
 # Gemini Smart Search

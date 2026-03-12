@@ -40,3 +40,5 @@ API candidate ids:
 - If later promoted to a plugin, preserve the same mode names and result schema.
 - For quota-free smoke tests, Python supports `GEMINI_SMART_SEARCH_SKIP_LOCAL_ENV=1` to disable the Python script's repo-local `.env.local` loading temporarily.
 - That skip flag does **not** stop the shell wrapper from sourcing `.env.local` first; use direct Python invocation for missing-key smoke checks or temporarily hide the env file when testing wrapper parity.
+- Request auth should be sent via the `x-goog-api-key` header rather than a URL query parameter so the key is less likely to leak into logs or telemetry.
+- Registry/skill metadata should declare `SMART_SEARCH_GEMINI_API_KEY` as the primary required env, even though runtime still falls back to `GEMINI_API_KEY` for compatibility.

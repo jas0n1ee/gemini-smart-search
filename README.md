@@ -17,6 +17,12 @@ The agent should:
 - read `SKILL.md`
 - ask you for a Gemini API key if setup is incomplete
 
+This skill expects a Gemini API key:
+- preferred: `SMART_SEARCH_GEMINI_API_KEY`
+- fallback: `GEMINI_API_KEY`
+
+Keep the key in a gitignored local env file such as `.env.local`, not in tracked files.
+
 ## What it is
 
 This skill gives an agent a Gemini-only search workflow with:

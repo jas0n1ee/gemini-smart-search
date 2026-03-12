@@ -240,13 +240,15 @@ def extract_citations(data: dict[str, Any]) -> list[dict[str, str]]:
 
 def call_gemini(model: str, query: str, api_key: str) -> dict[str, Any]:
     url = API_BASE.format(model=urllib.parse.quote(model, safe=""))
-    url = f"{url}?key={urllib.parse.quote(api_key, safe='')}"
 
     body = json.dumps(build_request(query)).encode("utf-8")
     request = urllib.request.Request(
         url,
         data=body,
-        headers={"Content-Type": "application/json"},
+        headers={
+            "Content-Type": "application/json",
+            "x-goog-api-key": api_key,
+        },
         method="POST",
     )
 
