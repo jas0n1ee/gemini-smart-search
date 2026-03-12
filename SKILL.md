@@ -63,6 +63,10 @@ Preferred order:
 1. `SMART_SEARCH_GEMINI_API_KEY`
 2. `GEMINI_API_KEY`
 
+If neither key is present, the agent must explicitly ask the human for a Gemini API key before claiming setup is complete.
+
+Do not store the key in tracked repository files. Prefer a repo-local, gitignored file such as `.env.local`.
+
 See `references/config.md`.
 
 ## When to use this skill instead of built-in `web_search`
